@@ -1,4 +1,4 @@
-# test-role-create-custom-iso-file
+# Ansible role: create RHEL custom iso files
 
 First step is updating the "hosts" file which you'll use an inventory. Then you need to create yaml file (I recommend to protect the file using ansible-vault) in which you'll store all the needed variable values:
 
