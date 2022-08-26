@@ -1,0 +1,19 @@
+lang en_US
+keyboard {{ keyboard_layout  }}
+timezone {{ time_zone }} --isUtc
+rootpw {{ rt_pass | password_hash('sha512') }} --iscrypted
+reboot
+cdrom
+bootloader --append="rhgb quiet crashkernel=auto"
+zerombr
+clearpart --all --initlabel
+autopart
+auth --passalgo=sha512 --useshadow
+network --bootproto={{ network_bootproto }} #HERE
+firstboot --disable
+selinux --enforcing
+firewall --enabled --ssh
+%packages
+@^minimal-environment
+kexec-tools
+%end

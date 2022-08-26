@@ -1,0 +1,5 @@
+### BEGIN /etc/grub.d/10_linux ###
+menuentry 'Install Red Hat Enterprise Linux {{ rhel_version }}' --class fedora --class gnu-linux --class gnu --class os {
+linuxefi /images/pxeboot/vmlinuz inst.stage2=hd:LABEL={{ rhel_label }} inst.ks=cdrom:/ks.cfg
+initrdefi /images/pxeboot/initrd.img
+}

@@ -1,0 +1,111 @@
+---
+   - name: Install packages needed (genisoimage, mkisofs, syslinux, isomd5sum)
+     ansible.builtin.yum:
+       name: 
+         - genisoimage
+         - mkisofs
+         - syslinux
+         - isomd5sum
+       state: latest
+
+   - name: Mount installation ISO read-only
+     ansible.builtin.mount:
+       path: "{{ mnt_dir }}"
+       src:  "{{ original_iso_full_path }}"
+       fstype: "iso9660"
+       opts: loop,ro
+       state: mounted
+     become: true
+
+   - name: Create a working directory if it does not exist
+     ansible.builtin.file:
+       path: "{{ wrk_dir }}"
+       state: directory
+
+   - name: Copy ISO content to working directory
+     ansible.builtin.copy:
+       src:  "{{ mnt_dir }}/"
+       dest: "{{ wrk_dir }}/"
+       remote_src: yes
+     become: true 
+
+   - name: Unmount original ISO 
+     ansible.builtin.mount:
+       path: "{{ mnt_dir }}"
+       state: unmounted
+     become: true
+
+   - name: "Set variables according to RHEL version 8.5"
+     ansible.builtin.set_fact:
+       rhel_label: "RHEL-8-5-0-BaseOS-x86_64"
+     when: rhel_version == "8.5"
+
+   - name: "Set variables according to RHEL version 8.6"
+     ansible.builtin.set_fact:
+       rhel_label: "RHEL-8-6-0-BaseOS-x86_64"
+     when: rhel_version == "8.6"
+
+   - name: "Set variables according to RHEL version 9"
+     ansible.builtin.set_fact:
+       rhel_label: "RHEL-9-0-0-BaseOS-x86_64"
+     when: rhel_version == "9"
+
+   - name: Print RHEL version label
+     ansible.builtin.debug:
+       msg: "Defined version is {{ rhel_version }} and label is {{ rhel_label }}"
+
+   - name: Create ks.cfg file from template
+     ansible.builtin.template:
+       src: ks.cfg.j2
+       dest: "{{ wrk_dir }}/ks.cfg"
+     become: true
+
+   - name: Insert ip address and netmask if network is static
+     ansible.builtin.lineinfile:
+       path: "{{ wrk_dir }}/ks.cfg"
+       regexp: "^network --bootproto=static"
+       line: "network --bootproto=static --ip={{ machine_ip }} --netmask={{ machine_netmask }}"
+       backrefs: yes
+     when: network_bootproto == "static"
+
+   - name: Create isolinux.cfg file from template
+     ansible.builtin.template:
+       src: isolinux.cfg.j2
+       dest: "{{ wrk_dir }}/isolinux/isolinux.cfg"
+     become: true
+
+   - name: Create grub.cfg file from template
+     ansible.builtin.template:
+       src: grub.cfg.j2
+       dest: "{{ wrk_dir }}/EFI/BOOT/grub.cfg"
+     become: true
+
+   - name: Create customized RHEL iso image
+     ansible.builtin.shell: 'mkisofs -o {{ cust_iso }} -b isolinux/isolinux.bin -J -R -l -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -eltorito-alt-boot -e images/efiboot.img -no-emul-boot --joliet-long -graft-points -V "{{ rhel_label }}" {{ wrk_dir }}'
+     become: true
+
+   - name: Make it UEFI bootable
+     ansible.builtin.shell: "isohybrid --uefi {{ cust_iso }}"
+     become: true
+
+   - name: Implant md5 to ISO file
+     ansible.builtin.shell: "implantisomd5 {{ cust_iso }}"
+     become: true
+
+   - name: Remove workingdir with ISO content
+     ansible.builtin.file:
+       path: "{{ item }}"
+       state: absent
+     become: true
+     loop:
+        - "{{ wrk_dir }}"
+        - "{{ mnt_dir }}"
+
+   - name: Remove used packages (genisoimage, mkisofs, syslinux, isomd5sum)
+     ansible.builtin.yum:
+       name: 
+         - genisoimage#
+         - mkisofs
+         - syslinux
+         - isomd5sum
+       state: absent
