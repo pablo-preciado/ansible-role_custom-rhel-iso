@@ -9,7 +9,7 @@ zerombr
 clearpart --all --initlabel
 autopart
 auth --passalgo=sha512 --useshadow
-network --bootproto={{ network_bootproto }} #HERE
+network --bootproto={{ network_bootproto }}
 firstboot --disable
 selinux --enforcing
 firewall --enabled --ssh

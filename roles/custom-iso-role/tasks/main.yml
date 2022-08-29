@@ -17,6 +17,19 @@
        state: mounted
      become: true
 
+   - name: Get RHEL version out of original iso file
+     ansible.builtin.shell: "blkid {{ original_iso_full_path }}"
+     register: blkid_output
+
+   - name: Set variables according to detected RHEL
+     ansible.builtin.set_fact:
+       rhel_label: "{{ blkid_output.stdout | regex_search('RHEL-(.*)-x86_64') }}"
+       rhel_version: "{{ blkid_output.stdout | regex_search('.[.].') }}"
+
+   - name: Print RHEL version and iso label
+     ansible.builtin.debug:
+       msg: "Automatically detected RHEL version is {{ rhel_version }}, iso file label is {{ rhel_label }}"
+
    - name: Create a working directory if it does not exist
      ansible.builtin.file:
        path: "{{ wrk_dir }}"
@@ -24,9 +37,9 @@
 
    - name: Copy ISO content to working directory
      ansible.builtin.copy:
-       src:  "{{ mnt_dir }}/"
+       src: "{{ mnt_dir }}/"
        dest: "{{ wrk_dir }}/"
-       remote_src: yes
+       remote_src: true
      become: true 
 
    - name: Unmount original ISO 
@@ -34,25 +47,6 @@
        path: "{{ mnt_dir }}"
        state: unmounted
      become: true
-
-   - name: "Set variables according to RHEL version 8.5"
-     ansible.builtin.set_fact:
-       rhel_label: "RHEL-8-5-0-BaseOS-x86_64"
-     when: rhel_version == "8.5"
-
-   - name: "Set variables according to RHEL version 8.6"
-     ansible.builtin.set_fact:
-       rhel_label: "RHEL-8-6-0-BaseOS-x86_64"
-     when: rhel_version == "8.6"
-
-   - name: "Set variables according to RHEL version 9"
-     ansible.builtin.set_fact:
-       rhel_label: "RHEL-9-0-0-BaseOS-x86_64"
-     when: rhel_version == "9"
-
-   - name: Print RHEL version label
-     ansible.builtin.debug:
-       msg: "Defined version is {{ rhel_version }} and label is {{ rhel_label }}"
 
    - name: Create ks.cfg file from template
      ansible.builtin.template:
@@ -67,6 +61,55 @@
        line: "network --bootproto=static --ip={{ machine_ip }} --netmask={{ machine_netmask }}"
        backrefs: yes
      when: network_bootproto == "static"
+
+   - name: Insert hostname if defined
+     ansible.builtin.lineinfile:
+       path: "{{ wrk_dir }}/ks.cfg"
+       regexp: "^(network --bootproto=(.*)?)"
+       line: \g<1> --hostname={{ machine_hostname }}
+       backrefs: yes
+     when: machine_hostname is defined
+
+   - name: Insert DNS if defined
+     ansible.builtin.lineinfile:
+       path: "{{ wrk_dir }}/ks.cfg"
+       regexp: "^(network --bootproto=(.*)?)"
+       line: \g<1> --nameserver={{ dns_server }}
+       backrefs: yes
+     when: (network_bootproto == "static") and (dns_server is defined)
+
+   - name: Insert gateway if defined
+     ansible.builtin.lineinfile:
+       path: "{{ wrk_dir }}/ks.cfg"
+       regexp: "^(network --bootproto=(.*)?)"
+       line: \g<1> --gateway={{ net_gateway }}
+       backrefs: yes
+     when: (network_bootproto == "static") and (net_gateway is defined)
+
+   - name: Insert additional user and password if defined
+     ansible.builtin.lineinfile:
+       path: "{{ wrk_dir }}/ks.cfg"
+       line: "user --name={{ additional_user_name }} --password={{ additional_user_pass | password_hash('sha512') }} --iscrypted"
+       insertbefore: '%packages'
+     when: (additional_user_name is defined) and (additional_user_pass is defined)
+
+   - name: Include the additional user into an non-default group
+     ansible.builtin.lineinfile:
+       path: "{{ wrk_dir }}/ks.cfg"
+       regexp: "^(user --name=(.*)?)"
+       line: \g<1> --groups={{ additional_user_group }}
+       backrefs: yes
+     when: (additional_user_name is defined) and (additional_user_pass is defined) and (additional_user_group is defined)
+
+   - name: Subscribe the system with subcription-manager in post script
+     ansible.builtin.blockinfile:
+       path: "{{ wrk_dir }}/ks.cfg"
+       insertbefore: '%packages'
+       block: |
+         %post --log=/root/registration_results.out
+         subscription-manager register --auto-attach --username={{ rhn_user }} --password={{ rhn_pass }}
+         %end
+     when: (rhn_user is defined) and (rhn_pass is defined)
 
    - name: Create isolinux.cfg file from template
      ansible.builtin.template:
