@@ -1,4 +1,4 @@
-#Ansible role: create RHEL custom iso file
+# Ansible role: create RHEL custom iso file
 
 This role has been tested with three different versions of RHEL, this is 8.5, 8.6 and 9. You need to download the original iso file from Red Hat and store it in your target host, remember to define all the mandatory variables, including the full path to the original Red Hat iso file.
 
