@@ -86,3 +86,7 @@ Then run the ansible-navigator command for executing the playbook using the vari
 ```
 ansible-navigator run -m stdout --pae false test-role.yml -e @variables.yml -i ./hosts --ask-vault-pass
 ```
+
+References:
+  [Red Hat kickstart generator](https://access.redhat.com/labs/kickstartconfig/)
+  [How to create a modified Red Hat Enterprise Linux ISO with kickstart file or modified installation media?](https://access.redhat.com/solutions/60959)
