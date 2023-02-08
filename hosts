@@ -1,2 +1,0 @@
-[target_hosts]
-target1   ansible_host=<your-target-host-ip> ansible_connection=ssh ansible_ssh_user=<your-ssh-username> ansible_ssh_pass=<your-ssh-password>
