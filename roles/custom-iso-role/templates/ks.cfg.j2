@@ -1,7 +1,7 @@
-lang en_US
-keyboard {{ keyboard_layout  }}
-timezone {{ time_zone }} --isUtc
-rootpw {{ rt_pass | password_hash('sha512') }} --iscrypted
+lang {{ my_system_language }}
+keyboard {{ my_keyboard_layout  }}
+timezone {{ my_time_zone }} --isUtc
+rootpw {{ my_root_pass | password_hash('sha512') }} --iscrypted
 reboot
 cdrom
 bootloader --append="rhgb quiet crashkernel=auto"
@@ -9,10 +9,31 @@ zerombr
 clearpart --all --initlabel
 autopart
 auth --passalgo=sha512 --useshadow
-network --bootproto={{ network_bootproto }}
+{% if my_network_bootprotocol == "dhcp" %}
+network --bootproto=dhcp
+{%- if my_hostname   is defined %} --hostname={{ my_hostname }} {% endif +%}
+{% elif my_network_bootprotocol == "static" %}
+network --bootproto=static 
+{%- if my_hostname   is defined %} --hostname={{ my_hostname }} {% endif %}
+{%- if my_netdevice  is defined %}--device={{ my_netdevice }} {% endif %}
+{%- if my_ip         is defined %}--ip={{ my_ip }} {% endif %}
+{%- if my_netmask    is defined %}--netmask={{ my_netmask }} {% endif %}
+{%- if my_gateway    is defined %}--gateway={{ my_gateway }} {% endif %}
+{%- if my_dns_server is defined %}--nameserver={{ my_dns_server }} {% endif +%}
+{% endif %}
 firstboot --disable
 selinux --enforcing
 firewall --enabled --ssh
+{%- for user_data in my_users +%}
+user --name={{ user_data['name'] }} --password={{ user_data['password'] | password_hash('sha512') }} --iscrypted {%- if user_data['groups']  is defined %} --groups={{ user_data['groups'] }} {% endif %}
+{% endfor +%}
+{% if my_rhn_user is defined %}
+{%- if my_rhn_pass is defined %}
+%post --log=/root/registration_results.out
+subscription-manager register --auto-attach --username={{ my_rhn_user }} --password={{ my_rhn_pass }}
+%end
+{% endif -%}
+{% endif -%}
 %packages
 @^minimal-environment
 kexec-tools
