@@ -2,89 +2,53 @@
 
 This role has been tested with three different versions of RHEL, this is 8.5, 8.6 and 9. You need to download the original iso file from Red Hat and store it in your target host, remember to define all the mandatory variables, including the full path to the original Red Hat iso file.
 
-First step is updating the "hosts" file which you'll use an inventory. Then you need to create yaml file (I recommend to protect the file using ansible-vault) in which you'll store all the needed variable values:
+You only need to give values to all of the variables (some of these are optional):
 
 ```
-ansible-vault create variables.yml
+#Directories and files
+my_original_iso_full_path: /ISO-files/rhel-8.5-x86_64-dvd.iso
+my_custom_iso: /ISO-files/my_custom.iso
+my_working_dir: /tmp/working-dir
+my_mnt_dir: /tmp/mnt-dir
+
+#General iso configuration
+my_system_language: en_US
+my_keyboard_layout: es
+my_time_zone: Europe/Paris
+my_root_pass: redhat
+
+#Networking options for iso file
+my_network_bootprotocol: dhcp #Mandatory variable, options are "dhcp" or "static"
+my_hostname: testhostname #Optional
+my_netdevice: eht1 #Optional, only to be used if my_network_bootprotocol is "static"
+my_ip: 192.168.1.23 #Mandatory when my_network_bootprotocol is "static"
+my_netmask: 24 #Optional, only to be used if my_network_bootprotocol is "static"
+my_gateway: 4.5.6.7 #Optional, only to be used if my_network_bootprotocol is "static"
+my_dns_server: 8.8.8.8 #Optional, only to be used if my_network_bootprotocol is "static"
+
+#Optional Red Hat CDN user and password for registering with Insights
+my_rhn_user: myuser
+my_rhn_pass: mypassword
+
+#Optional, users to be created. You can add as many users as you want by growing the dictionary with the same structure
+#Every entry on the dictionary must have "name" and "password" fields, optionally you can define additional groups for the user with the "groups" field (see example below)
+my_users:
+  - name: ansible
+    password: redhat
+    groups: wheel
+  - name: preciado
+    password: redhat
+    groups: wheel
+  - name: pablo
+    password: redhat
 ```
+You can also define the host in which to run the role in the "hosts" file within this git.
 
-Define all the variables in that file. Remember that if not defined the role will use default values, some of them don't have valid default value so those ones are mandatory.
-
-```
-###########################
-# General variables
-###########################
-
-#Mandatory: Specify where to find the original ISO file (the standard RHEL ISO)
-
-original_iso_full_path: "full-path-to-your-original-iso-file"
-
-#Optional: define the name and path for your output ISO file:
-
-#cust_iso_file: "custom-iso-file.iso"
-#cust_iso: "~/{{ cust_iso_file }}"
-
-#Optional: define your working directory:
-
-#wrk_dir:  /tmp/rhel_cdrom
-
-###########################
-# Kickstart file variables
-###########################
-
-#Mandatory: define root password (it will be encrypted in the ks.cfg file):
-
-rt_pass: "your-root-password"
-
-#Mandatory: choose "dhcp" or "static", default is "dhcp"
-
-network_bootproto: "dhcp"
-
-#Mandatory if static: define ip and netmask
-
-#machine_ip: "10.10.10.10"
-#machine_netmask: "255.255.255.0"
-
-#Optional if static: define DNS server and/or gateway
-
-#dns_server: 8.8.8.8
-#net_gateway: 10.10.10.1
-
-#Optional: define a hostname
-
-#machine_hostname: test.local
-
-#Optional: you can create another user
-
-#additional_user_name: ansible
-#additional_user_pass: redhat
-
-#Optional: add the additional user to a group different of the default one (use wheel for sudoer)
-
-#additional_user_group: wheel
-
-#Optional: give Red Hat network username and password
-
-#rhn_user: "your-rh-cdn-username"
-#rhn_pass: "your-rh-cdn-password"
-
-#Mandatory: other variables you need to define
-
-keyboard_layout: "es"
-system_language: "en_US.UTF-8"
-time_zone: "Europe/Madrid"
-```
-
-Prepare your environment so it's able to run ansible-navigator:
+Once everything is ready just write a simple playbook calling the role and defining the variables, such as the one you can find in the "example.yml" file.
+Then run the ansible-navigator command for executing your playbook:
 
 ```
-podman login registry.redhat.io
-```
-
-Then run the ansible-navigator command for executing the playbook using the variables on the vault file:
-
-```
-ansible-navigator run -m stdout --pae false test-role.yml -e @variables.yml -i ./hosts --ask-vault-pass
+ansible-navigator run example.yml -m stdout -i ./hosts
 ```
 
 References:
