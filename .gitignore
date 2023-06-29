@@ -1,0 +1,4 @@
+.vscode
+my-test.yml
+my-inventory
+ansible-navigator.log
